@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 
-import collections
 import inspect
 import itertools
 import logging
