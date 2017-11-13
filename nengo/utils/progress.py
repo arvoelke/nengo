@@ -240,7 +240,7 @@ class TerminalProgressBar(ProgressBar):
         text_pos = (len(progress_str) - len(text)) // 2
         progress_str = (
             progress_str[:text_pos] + text +
-                progress_str[text_pos + len(text):])
+            progress_str[text_pos + len(text):])
         return '\r' + line.format(progress_str)
 
     def _get_finished_line(self, progress):
