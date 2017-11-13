@@ -301,6 +301,7 @@ def test_simulator_progress_bars(RefSimulator):
             assert not self.closed
             if self.progress is not progress:
                 assert self.max_steps is None or self.n_steps == self.max_steps
+                self.n_steps = 0
                 self.max_steps = progress.max_steps
                 self.progress = progress
             assert progress.max_steps == self.max_steps
@@ -312,13 +313,11 @@ def test_simulator_progress_bars(RefSimulator):
         def close(self):
             self.closed = True
 
-
     with nengo.Network() as model:
         for _ in range(3):
             [nengo.Ensemble(10, 1) for i in range(3)]
             with nengo.Network() as net:
                 [nengo.Ensemble(10, 1) for i in range(3)]
-
 
     build_invariants = ProgressBarInvariants()
     with RefSimulator(
