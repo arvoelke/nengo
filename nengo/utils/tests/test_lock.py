@@ -36,6 +36,7 @@ def test_can_acquire_filelock_at_most_once(tmpdir):
     assert p.exitcode == 0
 
 
+@pytest.mark.filterwarnings('ignore::ResourceWarning')
 def test_process_termination_releases_lock(tmpdir):
     filename = os.path.join(str(tmpdir), 'lock')
     p = multiprocessing.Process(target=acquire_lock_and_idle, args=(filename,))
