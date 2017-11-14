@@ -299,7 +299,7 @@ def test_gain_bias(Simulator):
     D = 2
 
     gain = np.random.uniform(low=0.2, high=5, size=N)
-    bias = np.random.uniform(low=0.2, high=1, size=N)
+    bias = np.random.uniform(low=1.2, high=2, size=N)
 
     model = nengo.Network()
     with model:
