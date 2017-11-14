@@ -80,6 +80,7 @@ def test_constant_scalar(Simulator, nl, plt, seed):
     assert np.allclose(sim.data[A_p][-10:], val, atol=.1, rtol=.01)
 
 
+@pytest.mark.filterwarnings('ignore:overflow encountered in exp')
 def test_constant_vector(Simulator, nl, plt, seed):
     """A network that represents a constant 3D vector."""
     N = 30
@@ -130,6 +131,7 @@ def test_scalar(Simulator, nl, plt, seed):
     assert allclose(t, target, sim.data[A_p], atol=0.1, delay=0.03, plt=plt)
 
 
+@pytest.mark.filterwarnings('ignore:overflow encountered in exp')
 def test_vector(Simulator, nl, plt, seed):
     """A network that represents sin(t), cos(t), cos(t)**2."""
     N = 100

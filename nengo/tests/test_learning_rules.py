@@ -73,6 +73,7 @@ def _test_pes(Simulator, nl, plt, seed,
     assert not np.allclose(weights[0], weights[-1], atol=1e-5)
 
 
+@pytest.mark.filterwarnings('ignore:overflow encountered in exp')
 def test_pes_ens_ens(Simulator, nl_nodirect, plt, seed):
     function = lambda x: [x[1], x[0]]
     _test_pes(Simulator, nl_nodirect, plt, seed, function=function)
@@ -389,6 +390,7 @@ def test_learningrule_attr(seed):
             check_rule(c3.learning_rule[key], c3, r3[key])
 
 
+@pytest.mark.filterwarnings('ignore:overflow encountered in exp')
 def test_voja_encoders(Simulator, nl_nodirect, rng, seed):
     """Tests that voja changes active encoders to the input."""
     n = 200
