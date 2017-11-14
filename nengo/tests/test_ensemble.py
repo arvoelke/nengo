@@ -289,7 +289,8 @@ def test_invalid_rates(Simulator):
                        neuron_type=nengo.LIF(tau_ref=0.01))
 
     with pytest.raises(ValueError):
-        Simulator(model)
+        with Simulator(model):
+            pass
 
 
 def test_gain_bias(Simulator):
