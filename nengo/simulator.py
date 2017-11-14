@@ -141,7 +141,7 @@ class Simulator(object):
     def __init__(
             self, network,
             dt=0.001, seed=None, model=None, progress_bar=True, optimize=True):
-        self.closed = False
+        self.closed = True  # consider closed if constructor raises exception
         self.progress_bar = progress_bar
 
         if model is None:
@@ -176,6 +176,7 @@ class Simulator(object):
         self.data = ProbeDict(self._probe_outputs)
 
         seed = np.random.randint(npext.maxint) if seed is None else seed
+        self.closed = False
         self.reset(seed=seed)
 
     def __del__(self):
