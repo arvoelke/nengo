@@ -1012,6 +1012,9 @@ def test_function_names():
         assert str(array_conn).endswith("computing 'ndarray'>")
 
 
+@pytest.mark.filterwarnings('ignore:divide by zero')
+@pytest.mark.filterwarnings('ignore:invalid value')
+@pytest.mark.filterwarnings('ignore:Non-finite values detected')
 def test_zero_activities_error(Simulator):
     with nengo.Network() as model:
         a = nengo.Ensemble(10, 1)
