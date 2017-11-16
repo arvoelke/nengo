@@ -64,6 +64,7 @@ def build_network(model, network, progress=None):
 
         if progress is not None:
             progress.max_steps = max_steps
+
             def build_callback(obj):
                 if isinstance(obj, tuple(network.objects)):
                     progress.step()
