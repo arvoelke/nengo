@@ -53,8 +53,12 @@ class Progress(object):
     ----------
     max_steps : int
         The total number of calculation steps of the process.
-    task : str
-        Short description of the task the progress is for.
+    ongoing_name : str, optional
+        Short description of the task the progress is for to be used while it
+        is running.
+    finished_name : str, optional
+        Short description of the task the progress is for after it has
+        finished. Defaults to *ongoing_name*.
 
     Attributes
     ----------
@@ -62,6 +66,12 @@ class Progress(object):
         Number of completed steps.
     max_steps : int, optional
         The total number of calculation steps of the process (if known).
+    ongoing_name : str
+        Short description of the task the progress is for to be used while it
+        is running.
+    finished_name : str
+        Short description of the task the progress is for after it has
+        finished.
     start_time : float
         Time stamp of the time the process was started.
     end_time : float
@@ -81,13 +91,16 @@ class Progress(object):
 
     """
 
-    def __init__(self, max_steps=None, task=''):
+    def __init__(self, max_steps=None, ongoing_name='', finished_name=None):
         if max_steps is not None and max_steps <= 0:
             raise ValidationError("must be at least 1 (got %d)"
                                   % (max_steps,), attr="max_steps")
         self.n_steps = 0
         self.max_steps = max_steps
-        self.task = task
+        self.ongoing_name = ongoing_name
+        if finished_name is None:
+            finished_name = ongoing_name
+        self.finished_name = finished_name
         self.start_time = self.end_time = time.time()
         self.finished = False
         self.success = None
@@ -181,7 +194,7 @@ class ProgressBar(object):
 
         Indicates that not further updates will be made.
         """
-        pass
+        self.update(progress)
 
 
 class NoProgressBar(ProgressBar):
@@ -209,7 +222,7 @@ class TerminalProgressBar(ProgressBar):
         line = "[{{}}] ETA: {eta}".format(
             eta=timestamp2timedelta(progress.eta()))
         percent_str = " {}... {}% ".format(
-            progress.task, int(100 * progress.progress))
+            progress.ongoing_name, int(100 * progress.progress))
         width, _ = get_terminal_size()
         progress_width = max(0, width - len(line))
         progress_str = (
@@ -228,12 +241,12 @@ class TerminalProgressBar(ProgressBar):
         duration = progress.elapsed_seconds()
         line = "[{{}}] duration: {duration}".format(
             duration=timestamp2timedelta(duration))
-        text = " {}... ".format(progress.task)
+        text = " {}... ".format(progress.ongoing_name)
         width, _ = get_terminal_size()
         marker = '>>>>'
         progress_width = max(0, width - len(line) + 2)
         index_width = progress_width + len(marker)
-        i = int(4. * duration) % (index_width + 1)
+        i = int(10. * duration) % (index_width + 1)
         progress_str = (' ' * i) + marker + (' ' * (index_width - i))
         progress_str = progress_str[len(marker):-len(marker)]
         text_pos = (len(progress_str) - len(text)) // 2
@@ -245,7 +258,7 @@ class TerminalProgressBar(ProgressBar):
     def _get_finished_line(self, progress):
         width, _ = get_terminal_size()
         line = "{} finished in {}.".format(
-            progress.task,
+            progress.finished_name,
             timestamp2timedelta(progress.elapsed_seconds())).ljust(width)
         return '\r' + line
 
@@ -321,17 +334,17 @@ class HtmlProgressBar(ProgressBar):
             text = ''
         elif progress.finished:
             text = "{} finished in {}.".format(
-                escape(progress.task),
+                escape(progress.finished_name),
                 timestamp2timedelta(progress.elapsed_seconds()))
         elif progress.max_steps is None:
             text = (
                 "{task}&hellip; duration: {duration}".format(
-                    task=escape(progress.task),
+                    task=escape(progress.ongoing_name),
                     duration=timestamp2timedelta(progress.elapsed_seconds())))
         else:
             text = (
                 "{task}&hellip; {progress:.0f}%, ETA: {eta}".format(
-                    task=escape(progress.task),
+                    task=escape(progress.ongoing_name),
                     progress=100. * progress.progress,
                     eta=timestamp2timedelta(progress.eta())))
 
@@ -437,7 +450,7 @@ class WriteProgressToFile(ProgressBar):
     def update(self, progress):
         if progress.finished:
             text = "{} finished in {}.".format(
-                self.progress.task,
+                self.progress.finished_name,
                 timestamp2timedelta(progress.elapsed_seconds()))
         else:
             text = "{progress:.0f}%, ETA: {eta}".format(
@@ -498,6 +511,9 @@ class ProgressUpdater(object):
     """
 
     def __init__(self, progress_bar):
+        warnings.warn(DeprecationWarning(
+            "PorgressUpdater have been deprecated because progress bars "
+            "have been switched to asynchronous updating."))
         self.progress_bar = progress_bar
 
     def update(self, progress):
@@ -601,117 +617,42 @@ class UpdateEveryT(ProgressUpdater):
 
 
 class ProgressTracker(object):
-    """Tracks the progress of some process with a progress bar.
+    def __init__(self, progress_bar, total_progress, update_interval=0.1):
+        self.progress_bar = get_progressbar(progress_bar)
+        self.total_progress = total_progress
+        self.update_interval = update_interval
+        self.update_thread = threading.Thread(target=self.update_loop)
+        self.update_thread.deamon = True
+        self._closing = False
+        self.sub_progress = None
 
-    Parameters
-    ----------
-    max_steps : int, optional
-        Maximum number of steps of the process (if known).
-    progress_bar : :class:`ProgressBar` or :class:`ProgressUpdater`
-        The progress bar to display the progress.
-    task : str
-        Task name to display.
-    close : bool
-        Whether to close the progress bar after leaving the context of the
-        progress tracker.
-    """
-    def __init__(self, max_steps, progress_bar, task, close=True):
-        self.progress = Progress(max_steps, task=task)
-        self.progress_bar = wrap_with_progressupdater(
-            progress_bar=progress_bar)
-        self.close = close
-
-        if max_steps is None:
-            self.thread = threading.Thread(
-                target=ThreadedProgressStepper(self))
-            self.thread.daemon = True
-        else:
-            self.thread = None
+    def subtask(self, max_steps=None, ongoing_name='', finished_name=None):
+        if self.sub_progress is not None:
+            self.total_progress.step()
+        self.sub_progress = Progress(max_steps, ongoing_name, finished_name)
+        return self.sub_progress
 
     def __enter__(self):
-        self.progress.__enter__()
-        self.progress_bar.update(self.progress)
-
-        if self.thread is not None:
-            self.thread.start()
-
+        self._closing = False
+        self.total_progress.__enter__()
+        if not isinstance(self.progress_bar, NoProgressBar):
+            self.update_thread.start()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.progress.__exit__(exc_type, exc_value, traceback)
+        self._closing = True
+        self.total_progress.__exit__(exc_type, exc_value, traceback)
+        if not isinstance(self.progress_bar, NoProgressBar):
+            self.update_thread.join()
+            self.progress_bar.close(self.total_progress)
 
-        if self.thread is not None:
-            self.thread.join()
-
-        self.progress_bar.update(self.progress)
-        if self.close:
-            self.progress_bar.close(self.progress)
-
-    def start(self):
-        self.__enter__()
-
-    def stop(self, past_task=None):
-        if past_task is not None:
-            self.progress.task = past_task
-        self.__exit__(None, None, None)
-
-    def step(self, n=1):
-        """Advance the progress and update the progress bar.
-
-        Parameters
-        ----------
-        n : int
-            Number of steps to advance the progress by.
-        """
-        self.progress.step(n)
-        self.progress_bar.update(self.progress)
-
-
-class MultiProgressTracker(ProgressTracker):
-    """Tracks the progress of some process with a progress bar.
-
-    Parameters
-    ----------
-    progress_bar : :class:`ProgressBar` or :class:`ProgressUpdater`
-        The progress bar to display the progress.
-    task : str
-        Task name to display.
-    """
-    def __init__(self, progress_bar, task):
-        super(MultiProgressTracker, self).__init__(1, progress_bar, task)
-
-    def subprogress(self, max_steps, subtask):
-        pt = ProgressTracker(
-            max_steps, self.progress_bar, subtask, close=False)
-
-        return pt
-
-
-class NoopProgressTracker(ProgressTracker):
-    def __init__(self, *_):
-        pass
-
-    def __enter__(self):
-        pass
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        pass
-
-    def step(self):
-        pass
-
-    def subprogress(self, *_):
-        return NoopProgressTracker()
-
-
-class ThreadedProgressStepper(object):
-    def __init__(self, progress_tracker):
-        self.progress_tracker = progress_tracker
-
-    def __call__(self):
-        while not self.progress_tracker.progress.finished:
-            self.progress_tracker.step()
-            time.sleep(0.01)
+    def update_loop(self):
+        while not self._closing:
+            if self.sub_progress is not None:
+                self.progress_bar.update(self.sub_progress)
+            else:
+                self.progress_bar.update(self.total_progress)
+            time.sleep(self.update_interval)
 
 
 def get_default_progressbar():
@@ -745,6 +686,27 @@ def get_default_progressbar():
         return NoProgressBar()
 
 
+def to_progressbar(progress_bar):
+    """Converts to a `ProgressBar` instance.
+
+    Parameters
+    ----------
+    progress_bar : None, bool, or ProgressBar
+
+    Returns
+    -------
+    ProgressBar
+        Return *progress_bar* if it is already a progress bar, the default
+        progress bar if *progress_bar* is *True*, and `NoProgressBar` if it is
+        *None* or *False*.
+    """
+    if progress_bar is False or progress_bar is None:
+        progress_bar = NoProgressBar()
+    if progress_bar is True:
+        progress_bar = get_default_progressbar()
+    return progress_bar
+
+
 def get_default_progressupdater(progress_bar):
     """The default progress updater.
 
@@ -759,6 +721,10 @@ def get_default_progressupdater(progress_bar):
     -------
     :class:`ProgressUpdater`
     """
+    warnings.warn(DeprecationWarning(
+        "get_default_progressupdater has been deprecated because progress bars "
+        "have been switched to asynchronous updating."))
+
     updater = rc.get('progress', 'updater')
 
     if updater.lower() == 'auto':
@@ -788,6 +754,10 @@ def wrap_with_progressupdater(progress_bar=True):
     :class:`ProgressUpdater`
         The wrapped progress bar.
     """
+    warnings.warn(DeprecationWarning(
+        "wrap_with_progressupdater has been deprecated because progress bars "
+        "have been switched to asynchronous updating."))
+
     if progress_bar is False or progress_bar is None:
         return NoProgressBar()
 
