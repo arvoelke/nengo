@@ -189,12 +189,12 @@ class ProgressBar(object):
         """
         raise NotImplementedError()
 
-    def close(self, progress):
+    def close(self):
         """Closes the progress bar.
 
         Indicates that not further updates will be made.
         """
-        self.update(progress)
+        pass
 
 
 class NoProgressBar(ProgressBar):
@@ -211,7 +211,9 @@ class TerminalProgressBar(ProgressBar):
     """A progress bar that is displayed as ASCII output on `stdout`."""
 
     def update(self, progress):
-        if progress.max_steps is None:
+        if progress.finished:
+            line = self._get_finished_line(progress)
+        elif progress.max_steps is None:
             line = self._get_unknown_progress_line(progress)
         else:
             line = self._get_in_progress_line(progress)
@@ -262,9 +264,8 @@ class TerminalProgressBar(ProgressBar):
             timestamp2timedelta(progress.elapsed_seconds())).ljust(width)
         return '\r' + line
 
-    def close(self, progress):
-        line = self._get_finished_line(progress)
-        sys.stdout.write(line + "\n")
+    def close(self):
+        sys.stdout.write(os.linesep)
         sys.stdout.flush()
 
 
@@ -490,8 +491,8 @@ class AutoProgressBar(ProgressBar):
             self._visible = True
             self.delegate.update(progress)
 
-    def close(self, progress):
-        self.delegate.close(progress)
+    def close(self):
+        self.delegate.close()
 
     @property
     def supports_fast_ipynb_updates(self):
@@ -526,15 +527,9 @@ class ProgressUpdater(object):
         """
         raise NotImplementedError()
 
-    def close(self, progress):
-        """Close the progress bar.
-
-        Parameters
-        ----------
-        progress : :class:`Progress`
-            Changed progress information.
-        """
-        self.progress_bar.close(progress)
+    def close(self):
+        """Close the progress bar."""
+        self.progress_bar.close()
 
 
 class UpdateN(ProgressUpdater):
@@ -644,7 +639,7 @@ class ProgressTracker(object):
         self.total_progress.__exit__(exc_type, exc_value, traceback)
         if not isinstance(self.progress_bar, NoProgressBar):
             self.update_thread.join()
-            self.progress_bar.close(self.total_progress)
+            self.progress_bar.close()
 
     def update_loop(self):
         while not self._closing:
