@@ -719,8 +719,8 @@ def get_default_progressupdater(progress_bar):
     :class:`ProgressUpdater`
     """
     warnings.warn(DeprecationWarning(
-        "get_default_progressupdater has been deprecated because progress bars "
-        "have been switched to asynchronous updating."))
+        "get_default_progressupdater has been deprecated because progress "
+        "bars have been switched to asynchronous updating."))
 
     updater = rc.get('progress', 'updater')
 
