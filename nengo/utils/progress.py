@@ -618,7 +618,7 @@ class UpdateEveryT(ProgressUpdater):
 
 class ProgressTracker(object):
     def __init__(self, progress_bar, total_progress, update_interval=0.1):
-        self.progress_bar = get_progressbar(progress_bar)
+        self.progress_bar = to_progressbar(progress_bar)
         self.total_progress = total_progress
         self.update_interval = update_interval
         self.update_thread = threading.Thread(target=self.update_loop)
