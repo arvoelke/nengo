@@ -300,7 +300,7 @@ def test_simulator_progress_bars(RefSimulator):
         def update(self, progress):
             assert not self.closed
             if self.progress is not progress:
-                assert self.max_steps is None or self.n_steps == self.max_steps
+                assert self.max_steps is None or self.n_steps <= self.max_steps
                 self.n_steps = progress.n_steps
                 self.max_steps = progress.max_steps
                 self.progress = progress
