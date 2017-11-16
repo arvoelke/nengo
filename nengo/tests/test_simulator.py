@@ -10,7 +10,7 @@ from nengo.builder.operator import DotInc
 from nengo.builder.signal import Signal
 from nengo.exceptions import ObsoleteError, SimulatorClosed, ValidationError
 from nengo.utils.compat import ResourceWarning
-from nengo.utils.progress import ProgressBar, UpdateEveryN
+from nengo.utils.progress import ProgressBar
 from nengo.utils.testing import warns
 
 

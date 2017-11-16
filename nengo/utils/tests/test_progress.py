@@ -5,7 +5,7 @@ import pytest
 from nengo.exceptions import ValidationError
 from nengo.utils.progress import (
     AutoProgressBar, UpdateEveryN, UpdateEveryT, UpdateN, Progress,
-    ProgressBar, ProgressTracker)
+    ProgressBar)
 
 
 class ProgressBarMock(ProgressBar):
